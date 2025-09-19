@@ -2,7 +2,7 @@
 ### Game Design Document (GDD)  
 *Author:* <Your Name>  
 *Version:* 0.1 (MVP)  
-*Date:* YYYY‑MM‑DD
+*Date:* 2025-09-17
 
 ---
 
