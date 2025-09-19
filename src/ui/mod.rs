@@ -1,5 +1,6 @@
 use crate::app::App;
 use crate::sim::game::Game;
+use crate::sim::processors::DaemonMode;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
@@ -48,12 +49,22 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App, game: &Game) {
         .as_ref()
         .map(|job| job.name.as_str())
         .unwrap_or("None");
-    let daemon = if !game.state.daemon_unlocked {
+    let automation_summary = if !game.state.daemon_unlocked {
         "Locked".to_string()
-    } else if game.state.daemon_enabled {
-        "Enabled".to_string()
     } else {
-        "Disabled".to_string()
+        let auto = game
+            .state
+            .processors
+            .iter()
+            .filter(|p| p.daemon_mode == DaemonMode::Auto)
+            .count();
+        let assist = game
+            .state
+            .processors
+            .iter()
+            .filter(|p| p.daemon_mode == DaemonMode::Assist)
+            .count();
+        format!("{auto} auto / {assist} assist")
     };
 
     let lines = vec![
@@ -71,8 +82,8 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App, game: &Game) {
             ),
             Span::raw("  •  Pending: "),
             Span::styled(pending.to_string(), Style::default().fg(Color::Cyan)),
-            Span::raw("  •  Daemon: "),
-            Span::styled(daemon, Style::default().fg(Color::Magenta)),
+            Span::raw("  •  Automation: "),
+            Span::styled(automation_summary, Style::default().fg(Color::Magenta)),
         ]),
         Line::from(vec![Span::raw(
             "Use Tab to shift focus, Enter to interact with the highlighted panel.",
@@ -99,7 +110,13 @@ fn render_footer(frame: &mut Frame, area: Rect) {
         Span::styled("[S]", Style::default().fg(Color::Yellow)),
         Span::raw(" store  •  "),
         Span::styled("[D]", Style::default().fg(Color::Yellow)),
-        Span::raw(" toggle daemon  •  "),
+        Span::raw(" cycle automation  •  "),
+        Span::styled("[Shift+D]", Style::default().fg(Color::Yellow)),
+        Span::raw(" cooling safety  •  "),
+        Span::styled("[R]", Style::default().fg(Color::Yellow)),
+        Span::raw(" replace unit  •  "),
+        Span::styled("[Shift+R]", Style::default().fg(Color::Yellow)),
+        Span::raw(" replace model  •  "),
         Span::styled("[Q]", Style::default().fg(Color::Yellow)),
         Span::raw(" save & quit"),
     ]))
