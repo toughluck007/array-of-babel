@@ -18,10 +18,20 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, game: &Game) {
     let day_pct = (game.day_progress() * 100.0).min(100.0);
     let daemon_status = if !game.state.daemon_unlocked {
         format!("Locked ({} cr needed)", DAEMON_UNLOCK_CREDITS)
-    } else if game.state.daemon_enabled {
-        "Enabled".to_string()
     } else {
-        "Disabled".to_string()
+        let auto = game
+            .state
+            .processors
+            .iter()
+            .filter(|p| matches!(p.daemon_mode, crate::sim::processors::DaemonMode::Auto))
+            .count();
+        let assist = game
+            .state
+            .processors
+            .iter()
+            .filter(|p| matches!(p.daemon_mode, crate::sim::processors::DaemonMode::Assist))
+            .count();
+        format!("{auto} auto / {assist} assist")
     };
     let pending_job = app
         .pending_job
@@ -59,6 +69,23 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, game: &Game) {
         Line::from(vec![
             Span::raw("Daemon status: "),
             Span::styled(daemon_status, Style::default().fg(Color::Magenta)),
+        ]),
+        Line::from(vec![
+            Span::raw("Power draw: "),
+            Span::raw(format!("{:.1} kWh", game.total_power_draw())),
+            Span::raw("  •  Electricity/day: "),
+            Span::raw(format!("{} cr", game.total_electricity_cost())),
+        ]),
+        Line::from(vec![
+            Span::raw("Thermal paste: "),
+            Span::styled(
+                if game.thermal_paste_active() {
+                    "Active"
+                } else {
+                    "Dormant"
+                },
+                Style::default().fg(Color::LightBlue),
+            ),
         ]),
         Line::from(vec![
             Span::raw("Job spawn timer: "),

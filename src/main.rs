@@ -127,8 +127,39 @@ fn handle_key_event(key: KeyEvent, app: &mut App, game: &mut Game) -> Result<boo
             Ok(false)
         }
         KeyCode::Char('d') | KeyCode::Char('D') => {
-            if !game.toggle_daemon() {
-                game.add_message("Daemon subsystem not yet unlocked.");
+            if app.focus() == FocusTarget::Processors {
+                if game.state.processors.is_empty() {
+                    game.add_message("No processors available.");
+                } else {
+                    let index = app.selected_processor.min(game.state.processors.len() - 1);
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        game.toggle_honor_cooling(index);
+                    } else {
+                        game.cycle_daemon_mode(index);
+                    }
+                }
+            } else {
+                game.add_message("Focus a processor to adjust automation.");
+            }
+            Ok(false)
+        }
+        KeyCode::Char('r') | KeyCode::Char('R') => {
+            if app.focus() == FocusTarget::Processors {
+                if game.state.processors.is_empty() {
+                    game.add_message("No processors available to replace.");
+                } else {
+                    let index = app.selected_processor.min(game.state.processors.len() - 1);
+                    let result = if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        game.replace_model_direct(index)
+                    } else {
+                        game.replace_processor_direct(index)
+                    };
+                    if let Err(err) = result {
+                        game.add_message(format!("Replacement failed: {err}"));
+                    }
+                }
+            } else {
+                game.add_message("Focus a processor to replace hardware.");
             }
             Ok(false)
         }
@@ -209,10 +240,14 @@ fn handle_enter(app: &mut App, game: &mut Game) -> Result<bool> {
             Ok(false)
         }
         FocusTarget::Processors => {
+            if game.state.processors.is_empty() {
+                game.add_message("No processors available.");
+                return Ok(false);
+            }
+            let idx = app
+                .selected_processor
+                .min(game.state.processors.len().saturating_sub(1));
             if let Some(job) = app.pending_job.take() {
-                let idx = app
-                    .selected_processor
-                    .min(game.state.processors.len().saturating_sub(1));
                 let job_clone = job.clone();
                 match game.assign_job_to_processor(job_clone, idx, false) {
                     Ok(_) => Ok(false),
@@ -223,7 +258,9 @@ fn handle_enter(app: &mut App, game: &mut Game) -> Result<bool> {
                     }
                 }
             } else {
-                game.add_message("Select a job from the board first.");
+                if game.accept_assist_suggestion(idx) {
+                    app.clamp_job_selection(game.state.jobs.len());
+                }
                 Ok(false)
             }
         }
@@ -249,7 +286,12 @@ fn handle_store_key(key: KeyEvent, app: &mut App, game: &mut Game) -> Result<boo
             Ok(false)
         }
         KeyCode::Enter => {
-            if let Err(err) = game.purchase_item(app.selected_store_item) {
+            let processor_index = if game.state.processors.is_empty() {
+                None
+            } else {
+                Some(app.selected_processor.min(game.state.processors.len() - 1))
+            };
+            if let Err(err) = game.purchase_item(app.selected_store_item, processor_index) {
                 game.add_message(format!("Purchase failed: {err}"));
             }
             Ok(false)

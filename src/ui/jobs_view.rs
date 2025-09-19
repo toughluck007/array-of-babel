@@ -17,6 +17,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, game: &Game) {
         .iter()
         .map(|job| {
             let time_secs = job.base_time_ms as f64 / 1000.0;
+            let hazard_note = hazard_label(&job.tag);
             let line = Line::from(vec![
                 Span::styled(job.name.clone(), Style::default().fg(Color::Yellow)),
                 Span::raw(" "),
@@ -27,8 +28,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, game: &Game) {
                 Span::raw(format!("| Q{}", job.quality_target)),
             ]);
             let detail = Line::from(vec![Span::raw(format!(
-                "Tag: {} • Data yield: {} units",
-                job.tag, job.data_output
+                "Tag: {} • {} • Data: {} units",
+                job.tag, hazard_note, job.data_output
             ))]);
             ListItem::new(vec![line, detail])
         })
@@ -56,4 +57,14 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, game: &Game) {
         state.select(Some(selection));
     }
     frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn hazard_label(tag: &str) -> &'static str {
+    match tag {
+        crate::sim::jobs::SIMD_TAG => "High load",
+        "RADIATION" => "Radiation hazard",
+        "ANGEL" => "ANGEL exposure",
+        "SURVEILLANCE" => "Surveillance risk",
+        _ => "Routine",
+    }
 }
